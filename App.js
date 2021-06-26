@@ -4,15 +4,12 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  Touchable,
   View,
   Image,
   Button,
   TextInput,
   ImageBackground,
   SafeAreaView,
-  FlatList,
-  ScrollView,
   Alert,
   ActivityIndicator,
   Switch,
@@ -32,15 +29,16 @@ import { AppearanceProvider, useColorScheme } from "react-native-appearance";
 import { FakeCurrencyInput } from "react-native-currency-input";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Picker } from "@react-native-picker/picker";
-import {
-  CollapsibleHeaderScrollView,
-  CollapsibleHeaderFlatList,
-} from "react-native-collapsible-header-views";
+import { CollapsibleHeaderFlatList } from "react-native-collapsible-header-views";
 import * as SQLite from "expo-sqlite";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { format } from "date-fns";
+import Collapsible from "react-native-collapsible";
 
 const db = SQLite.openDatabase("db.testDb"); // returns Database object
+const dbVer = "1.0";
+
+const currency = "AED";
 
 const Stack = createStackNavigator();
 
@@ -60,7 +58,7 @@ function DataDummy() {
   return DATA;
 }
 
-const Item = ({ item, onPress, style }) => (
+const Item = ({ item, onPress, style, isCollapsed }) => (
   <TouchableOpacity onPress={onPress} style={[styles.itemContainer, style]}>
     <View style={styles.itemContainerTopRow}>
       <Text style={styles.title}>{item.name}</Text>
@@ -71,6 +69,9 @@ const Item = ({ item, onPress, style }) => (
         {format(new Date(item.date), "dd/MM/yyyy")}
       </Text>
     </View>
+    <Collapsible collapsed={isCollapsed}>
+      <Text style={styles.date}>{item.type}</Text>
+    </Collapsible>
   </TouchableOpacity>
 );
 
@@ -109,7 +110,7 @@ function RenderPickerList() {
 function DBcreate() {
   db.transaction((tx) => {
     tx.executeSql(
-      "CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, amount INT, date DATE)"
+      "CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, type TEXT, amount INT, date DATE)"
     );
     console.log("db created? v" + db.version);
   });
@@ -179,26 +180,47 @@ function Home({ navigation, route }) {
       );
       //addToTotalMoney(totalMoney + parseFloat(JSON.stringify(route.params.newTransactionAmount)));
     }
-    DBcreate();
-    DBfetch();
-    DBsum();
+
+    //DBdrop();
+    try {
+      DBcreate();
+    } catch (error) {
+      console.error(error);
+    }
+
+    try {
+      DBfetch();
+    } catch (error) {
+      console.error(error);
+    }
+
+    try {
+      DBsum();
+    } catch (error) {
+      console.error(error);
+    }
   }, [route.params?.newTransactionAmount]);
 
   const addToMoney = () => navigation.navigate("AddTransaction");
-  const currency = "AED";
   const { colors } = useTheme();
   const [selectedId, setSelectedId] = useState(null);
   const renderItem = ({ item }) => {
     const backgroundColor =
-      item.id.toString() === selectedId ? "#6e3b6e" : "#f9c2ff";
+      item.id.toString() === selectedId ? "#007ab3" : "#14b5ff";
+    const collapsed = item.id.toString() === selectedId ? false : true;
 
     return (
       <Item
         item={item}
         onPress={() => {
-          setSelectedId(item.id.toString());
+          if (item.id.toString() === selectedId) {
+            setSelectedId("-1");
+          } else {
+            setSelectedId(item.id.toString());
+          }
         }}
         style={{ backgroundColor }}
+        isCollapsed={collapsed}
       />
     );
   };
@@ -211,12 +233,12 @@ function Home({ navigation, route }) {
             <ImageBackground
               style={styles.headerImg}
               source={{
-                uri: "https://picsum.photos/500/500",
+                uri: "https://picsum.photos/500/500?blur",
               }}
             >
               <Text
                 style={{
-                  color: colors.text,
+                  color: "#000",
                   fontSize: 20,
                 }}
               >
@@ -224,7 +246,7 @@ function Home({ navigation, route }) {
               </Text>
               <Text
                 style={{
-                  color: colors.text,
+                  color: "#000",
                   fontSize: 50,
                   textShadowColor: "white",
                   textShadowOffset: { width: 1, height: 1 },
@@ -234,7 +256,7 @@ function Home({ navigation, route }) {
               >
                 {totalMoney.toFixed(2)} {currency}
               </Text>
-              <Text style={{ color: colors.text }}>in total</Text>
+              <Text style={{ color: "#000" }}>in total</Text>
             </ImageBackground>
           </View>
         }
@@ -246,6 +268,20 @@ function Home({ navigation, route }) {
         keyExtractor={(item) => item.id.toString()}
         extraData={selectedId}
       ></CollapsibleHeaderFlatList>
+
+      <TouchableOpacity
+        style={styles.touchableOpacityStyle}
+        onPress={addToMoney}
+      >
+        <Image
+          // FAB using TouchableOpacity with an image
+          // For online image
+          source={{
+            uri: "https://raw.githubusercontent.com/AboutReact/sampleresource/master/plus_icon.png",
+          }}
+          style={styles.floatingButtonStyle}
+        />
+      </TouchableOpacity>
 
       <View style={styles.dbDebugButton}>
         <Button title="Clear DB" onPress={DBdrop} color="#ff0000" />
@@ -266,20 +302,6 @@ function Home({ navigation, route }) {
         />
       </View>
 
-      <TouchableOpacity
-        style={styles.touchableOpacityStyle}
-        onPress={addToMoney}
-      >
-        <Image
-          // FAB using TouchableOpacity with an image
-          // For online image
-          source={{
-            uri: "https://raw.githubusercontent.com/AboutReact/sampleresource/master/plus_icon.png",
-          }}
-          style={styles.floatingButtonStyle}
-        />
-      </TouchableOpacity>
-
       <StatusBar style="auto" />
     </SafeAreaView>
   );
@@ -296,7 +318,7 @@ function AddTransaction({ navigation }) {
   const [mode, setMode] = useState("date");
   const [show, setShow] = useState(false);
 
-  const [selectedType, setSelectedType] = useState();
+  const [selectedType, setSelectedType] = useState("food");
 
   const [resArray, setResArray] = useState(null);
 
@@ -312,8 +334,8 @@ function AddTransaction({ navigation }) {
     );
     db.transaction((tx) => {
       tx.executeSql(
-        "INSERT INTO transactions (name, amount, date) values (?, ?, ?)",
-        [name, transactionAmount, format(date, "yyyy-MM-dd")],
+        "INSERT INTO transactions (name, type, amount, date) values (?, ?, ?, ?)",
+        [name, selectedType, transactionAmount, format(date, "yyyy-MM-dd")],
         (txObj, ResultSet) => {},
         (txObj, error) => console.log("Error", error)
       );
@@ -321,6 +343,7 @@ function AddTransaction({ navigation }) {
   };
 
   const onDateChange = (event, selectedDate) => {
+    console.log(`${selectedDate}, ${typeof selectedDate}`);
     const currentDate = selectedDate || date;
     setShow(Platform.OS === "ios");
     setDate(currentDate);
@@ -345,12 +368,7 @@ function AddTransaction({ navigation }) {
     setTransactionAmount(transactionAmount * -1);
   };
 
-  const options = {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  };
+  const [isCollapsed, toggleIsCollapsed] = useState(false);
 
   return (
     /* 
@@ -378,7 +396,7 @@ function AddTransaction({ navigation }) {
               setTransactionAmount(value);
             }
           }}
-          unit="$"
+          unit={currency}
           delimiter=","
           separator="."
           precision={2}
@@ -419,7 +437,7 @@ function AddTransaction({ navigation }) {
           selectedValue={selectedType}
           onValueChange={(itemValue, itemIndex) => {
             setSelectedType(itemValue);
-            console.log(itemValue);
+            console.log(`${itemValue}, ${typeof itemValue}`);
           }}
         >
           {RenderPickerList()}
@@ -441,6 +459,7 @@ function AddTransaction({ navigation }) {
           is24Hour={true}
           display="default"
           onChange={onDateChange}
+          maximumDate={new Date()}
         />
       )}
 
@@ -544,8 +563,7 @@ const styles = StyleSheet.create({
   },
   itemContainer: {
     padding: 20,
-    marginVertical: 8,
-    marginHorizontal: 16,
+    marginTop: 4,
   },
   title: {
     flex: 1,
@@ -569,6 +587,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
   },
   dbDebugButton: {
-    padding: 16,
+    position: "absolute",
+    bottom: 10,
+    width: "30%",
+    justifyContent: "center",
+    alignSelf: "center",
   },
 });
