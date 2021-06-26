@@ -14,7 +14,9 @@ _This is also me just learning react native as I slowly add features to this app
 **Possible future updates include (but are not limited to):**
 
 - Full light/dark theme support include support for following system theme
+- Support for multiple accounts with separate balances (like maybe a savings account etc)
 - Storing transactions in the cloud
+- Option to include user's current location (stored as coordinates) when adding a new transaction
 - Daily push notifications to remind user to add any new transactions
 - Lots of design stuff
   ... and more!
